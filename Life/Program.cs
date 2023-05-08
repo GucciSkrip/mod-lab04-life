@@ -6,6 +6,8 @@ using System.Threading.Tasks;
 using System.Threading;
 using Newtonsoft.Json;
 using System.IO;
+using System.Xml.Serialization;
+using System.Drawing;
 
 namespace cli_life
 {
@@ -18,8 +20,8 @@ namespace cli_life
     }
     public class Cell
     {
-        public int RowIndex { get; set; }
         public int ColumnIndex { get; set; }
+        public int RowIndex { get; set; }
         public bool IsAlive;
         public readonly List<Cell> neighbors = new List<Cell>();
         public bool IsAliveNext;
@@ -38,15 +40,29 @@ namespace cli_life
     }
     public class Board
     {
+        public int count1 = 0;
+        public int count2 = 0;
         public readonly Cell[,] Cells;
         public readonly int CellSize;
-
+        public void GetAverageStabilizationGeneration(int numGenerations)
+        {
+            int count = 0;
+            foreach (var cell in Cells)
+            {
+                if (cell.IsAlive)
+                    count++;
+            }
+            if (count == count1)
+                count2++;
+            if (count2 >= 10)
+                Console.WriteLine($"Stable phase on {numGenerations} generations");
+            count1 = count;
+        }
         public void ClassifyElements()
         {
-            int rows = Rows;
-            int cols = Columns;
-            bool[,] classification = new bool[rows, cols];
-
+            int blockCount = 0;
+            int rows = Rows; // 20
+            int cols = Columns; // 50
             bool[,] block = new bool[2, 2] { { true, true }, { true, true } };
 
             for (int r = 0; r < rows - block.GetLength(0); r++)
@@ -58,7 +74,7 @@ namespace cli_life
                     {
                         for (int bc = 0; bc < block.GetLength(1); bc++)
                         {
-                            if (Cells[r + br, c + bc].IsAlive != block[br, bc])
+                            if (Cells[c + bc, r + br].IsAlive != block[br, bc])
                             {
                                 match = false;
                                 break;
@@ -69,38 +85,23 @@ namespace cli_life
                     }
                     if (match)
                     {
-                        for (int br = 0; br < block.GetLength(0); br++)
-                        {
-                            for (int bc = 0; bc < block.GetLength(1); bc++)
-                            {
-                                classification[r + br, c + bc] = true;
-                            }
-                        }
+                        blockCount++;
                     }
                 }
             }
-
-            for (int r = 0; r < rows; r++)
-            {
-                StringBuilder sb = new StringBuilder();
-                for (int c = 0; c < cols; c++)
-                {
-                    if (classification[r, c])
-                    {
-                        sb.Append("*");
-                    }
-                    else
-                    {
-                        sb.Append(Cells[r, c].IsAlive ? "O" : ".");
-                    }
-                }
-                Console.WriteLine(sb.ToString());
-            }
+            Console.WriteLine($"Number of elements matching the \"cube\" - {blockCount}");
         }
-        public int GetTotalElementCount()
+        public void GetTotalElementCount()
         {
-            return Cells.Length + (Cells.GetLength(0) - 1) * (Cells.GetLength(1) - 1);
+            int count = 0;
+            foreach (var cell in Cells)
+            {
+                if (cell.IsAlive)
+                    count++;
+            }
+            Console.WriteLine($"Number of combinations - {count}");
         }
+       
         public void SaveToFile(string fileName)
         {
             var lines = new List<string>();
@@ -199,106 +200,34 @@ namespace cli_life
                 }
             }
         }
-        public int GetStablePhaseTime(int maxIterations)
-        {
-            int sumIterations = 0;
-            int countIterations = 0;
-
-            while (countIterations < maxIterations)
-            {
-                RunSimulation();
-                int stablePhaseTime = CalculateStablePhaseTime();
-
-                if (stablePhaseTime > 0)
-                {
-                    sumIterations += stablePhaseTime;
-                    countIterations++;
-                }
-            }
-
-            return countIterations > 0 ? sumIterations / countIterations : 0;
-        }
-
-        private void RunSimulation()
-        {
-            var allCells = Cells.Cast<Cell>();
-            foreach (var cell in allCells)
-            {
-                cell.neighbors.Clear();
-                int x = cell.ColumnIndex;
-                int y = cell.RowIndex;
-                for (int dx = -1; dx <= 1; dx++)
-                {
-                    for (int dy = -1; dy <= 1; dy++)
-                    {
-                        if (dx == 0 && dy == 0)
-                            continue;
-
-                        int nx = x + dx;
-                        int ny = y + dy;
-                        if (nx >= 0 && ny >= 0 && nx < Columns && ny < Rows)
-                        {
-                            cell.neighbors.Add(Cells[nx, ny]);
-                        }
-                    }
-                }
-            }
-
-            allCells.ToList().ForEach(c => c.DetermineNextLiveState());
-            allCells.ToList().ForEach(c => c.Advance());
-        }
-
-        private int CalculateStablePhaseTime()
-        {
-            var boardState = JsonConvert.SerializeObject(Cells);
-            int iterations = 0;
-
-            while (true)
-            {
-                RunSimulation();
-                string newBoardState = JsonConvert.SerializeObject(Cells);
-
-                if (newBoardState == boardState)
-                {
-                    return iterations;
-                }
-
-                boardState = newBoardState;
-                iterations++;
-            }
-        }
-        public int GetSymmetricElementCount()
+        public void GetSymmetricElementCount()
         {
             int count = 0;
-            for (int r = 0; r < Rows; r++)
+            for (int r = 0; r < Rows/2; r++)
             {
-                for (int c = 0; c < Columns; c++)
+                for (int c = 0; c < Columns/2; c++)
                 {
-                    if (Cells[r, c].IsAlive && Cells[Rows - 1 - r, Columns - 1 - c].IsAlive)
+                    if (Cells[c,r].IsAlive && Cells[Columns - 1 - c, Rows - 1 - r].IsAlive)
                     {
                         count++;
                     }
                 }
             }
-            return count;
+            Console.WriteLine($"Number of symmetrical cells - {count}");
         }
 
         public void ExploreSymmetry(int numGenerations)
         {
             var board1 = this.Clone();
             var board2 = this.Clone();
-            for (int i = 0; i < numGenerations; i++)
-            {
-                board1.Advance();
-                board2.Advance();
-                board2.Mirror();
-                if (board1.Equals(board2))
-                {
-                    Console.WriteLine($"System is symmetric after {i + 1} generations.");
-                    return;
-                }
-            }
-            Console.WriteLine($"System is asymmetric after {numGenerations} generations.");
+            
+            board1.Advance();
+            board2.Advance();
+            board2.Mirror();
+            if (board1.Equals(board2))
+                Console.WriteLine($"System is symmetrical on {numGenerations} generations.");
+            else
+            Console.WriteLine($"System is asymmetric on {numGenerations} generations.");
         }
 
         private void Mirror()
@@ -309,9 +238,9 @@ namespace cli_life
             {
                 for (int c = 0; c < cols / 2; c++)
                 {
-                    bool temp = Cells[r, c].IsAlive;
-                    Cells[r, c].IsAlive = Cells[r, cols - 1 - c].IsAlive;
-                    Cells[r, cols - 1 - c].IsAlive = temp;
+                    bool temp = Cells[c, r].IsAlive;
+                    Cells[c, r].IsAlive = Cells[cols - 1 - c, r].IsAlive;
+                    Cells[cols - 1 - c, r].IsAlive = temp;
                 }
             }
         }
@@ -326,7 +255,7 @@ namespace cli_life
         }
     }
     class Program
-    {
+    { 
         static Board board;
         static private void Reset()
         {
@@ -339,7 +268,7 @@ namespace cli_life
                 cellSize: settings.CellSize,
                 liveDensity: settings.LiveDensity);
 
-            board.LoadColonyFromFile("colony5.txt", 10, 10);
+            board.LoadColonyFromFile("colony1.txt", 25, 10);
         }
         static void Render()
         {
@@ -362,6 +291,7 @@ namespace cli_life
         }
         static void Main(string[] args)
         {
+            int generation = 0;
             Reset();
 
             bool shouldContinue = true;
@@ -369,26 +299,31 @@ namespace cli_life
             {
                 Console.Clear();
                 Render();
+                generation++;
                 board.Advance();
-
+                board.GetTotalElementCount();
+                board.ClassifyElements();
+                board.GetSymmetricElementCount();
+                board.ExploreSymmetry(generation);
+                board.GetAverageStabilizationGeneration(generation);
                 Console.WriteLine("S - save, L - load, or any other key to continue.");
                 var key = Console.ReadKey().Key;
                 if (key == ConsoleKey.S)
                 {
                     Console.WriteLine("\nSaving to file...");
                     board.SaveToFile("game_state.txt");
+                    Thread.Sleep(500);
                 }
                 else if (key == ConsoleKey.L)
                 {
                     Console.WriteLine("\nLoading from file...");
                     board.LoadFromFile("game_state.txt");
+                    Thread.Sleep(500);
                 }
                 else
                 {
                     shouldContinue = true;
                 }
-
-                Thread.Sleep(1000);
             }
         }
     }
