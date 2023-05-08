@@ -89,7 +89,7 @@ namespace Test
         public void GetTotalElementCount_BoardWithOneCell_ReturnsOne()
         {
             // Arrange
-            var board = new Board(10, 10, 10);
+            var board = new Board(10, 10, 1);
             board.Cells[0, 0].IsAlive = true;
 
             // Act
@@ -103,7 +103,7 @@ namespace Test
         public void GetTotalElementCount_EmptyBoard_ReturnsZero()
         {
             // Arrange
-            var board = new Board(10, 10, 10);
+            var board = new Board(10, 10, 1);
 
             // Act
             var count = board.GetTotalElementCount();

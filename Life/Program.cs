@@ -91,7 +91,7 @@ namespace cli_life
             }
             Console.WriteLine($"Number of elements matching the \"cube\" - {blockCount}");
         }
-        public void GetTotalElementCount()
+        public int GetTotalElementCount()
         {
             int count = 0;
             foreach (var cell in Cells)
@@ -100,6 +100,7 @@ namespace cli_life
                     count++;
             }
             Console.WriteLine($"Number of combinations - {count}");
+            return count;
         }
        
         public void SaveToFile(string fileName)
